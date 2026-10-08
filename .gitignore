@@ -233,3 +233,9 @@ __marimo__/
 *.compare.md
 data/
 .DS_Store
+*.segments.json
+*.review/
+review_results*.json
+
+# ===== 私人资料（课程术语表、评估记录），永不上传 =====
+local/

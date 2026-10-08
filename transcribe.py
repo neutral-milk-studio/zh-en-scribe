@@ -11,7 +11,10 @@ Whisper 和 SenseVoice 分别识别每一段，分歧处只在两者之间选择
 import argparse
 import gc
 import json
+import os
+import platform
 import re
+import shutil
 import subprocess
 import sys
 from difflib import SequenceMatcher
@@ -102,6 +105,9 @@ def vad_chunks(audio, max_len_s):
 
 class Whisper:
     def __init__(self, vocab):
+        # 模型已下载就离线运行，不再联网检查更新
+        if (Path.home() / ".cache/huggingface/hub" / f"models--{WHISPER_REPO.replace('/', '--')}").exists():
+            os.environ["HF_HUB_OFFLINE"] = "1"
         import mlx_whisper
         self.mlx_whisper = mlx_whisper
         self.prompt = "以下是一段中文访谈，夹杂英文" + (f"，会提到{'、'.join(vocab)}。" if vocab else "。")
@@ -171,7 +177,7 @@ class EnglishChecker:
     def unknown(self, text):
         if not self.enabled:
             return []
-        # 识别结果常把两个词连写（"linebecause"），能拆成两个 ≥4 字母的已知词也算
+        # 识别结果常把两个词连写（"makesense"），能拆成两个 ≥4 字母的已知词也算
         return sorted({w for w in re.findall(r"[a-z]+", text.lower()) if not self._base(w) and not any(
             w[:i] in self.known and w[i:] in self.known for i in range(4, len(w) - 3))})
 
@@ -244,13 +250,15 @@ W（Whisper，英文通常更准）：{wh}
 
 def write_outputs(data, out_dir, threshold, checker, chooser=None):
     path, total, segs = Path(data["path"]), data["total"], data["segs"]
-    transcript, compare = [], []
+    transcript, compare, records = [], [], []
     flagged_secs, n_flagged, n_auto = 0.0, 0, 0
     label = {"S": "SenseVoice", "W": "Whisper", "?": "都不对"}
     for s, e, r in segs:
         final, flag, note, ops, choices, ratio = resolve(r, threshold, checker, chooser)
-        if not final:
+        if not re.sub(r"[^\w]", "", final):  # 空或只有标点
             continue
+        records.append({"start": s, "end": e, "text": final, "flag": flag, "note": note,
+                        "sensevoice": r.get("sensevoice", ""), "whisper": r.get("whisper", "")})
         n_auto += bool(ops) and not flag
         n_flagged += flag
         flagged_secs += (e - s) * flag
@@ -267,7 +275,7 @@ def write_outputs(data, out_dir, threshold, checker, chooser=None):
             compare.append(f"- 说明：{note}")
         compare.append("")
 
-    summary = (f"需回听：{n_flagged}/{len(segs)} 段标 ⚠️，共 {ts(flagged_secs)}，占录音 {flagged_secs / total:.0%}；"
+    summary = (f"需回听：{n_flagged}/{len(records)} 段标 ⚠️，共 {ts(flagged_secs)}，占录音 {flagged_secs / total:.0%}；"
                f"另有 {n_auto} 段的小分歧已自动合并")
     via = f"LLM（{chooser.model}）选择" if chooser else "规则选择（英文取 Whisper，中文取 SenseVoice）"
     header = [f"# 转写：{path.name}", "", f"- 时长：{ts(total)}",
@@ -276,6 +284,9 @@ def write_outputs(data, out_dir, threshold, checker, chooser=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     for suffix, body in (("transcript", transcript), ("compare", compare)):
         (out_dir / f"{path.stem}.{suffix}.md").write_text("\n".join(header + body) + "\n")
+    # 供 review.py 生成核对网页
+    (out_dir / f"{path.stem}.segments.json").write_text(json.dumps(
+        {"audio": str(path), "total": total, "segments": records}, ensure_ascii=False, indent=1))
     print(f"  {summary}\n  ✓ {out_dir / path.stem}.transcript.md / .compare.md", file=sys.stderr)
 
 
@@ -291,6 +302,14 @@ def main():
     ap.add_argument("--llm", metavar="MODEL", nargs="?", const="qwen3:4b", help="实验：用本地 Ollama 模型做选择")
     ap.add_argument("--redo-asr", action="store_true", help="忽略缓存，重新识别")
     args = ap.parse_args()
+
+    if not (sys.platform == "darwin" and platform.machine() == "arm64"):
+        sys.exit("目前只支持 Apple Silicon Mac（M1 及以后）：Whisper 部分使用的 mlx-whisper 只能在这类设备上运行。")
+    if not shutil.which("ffmpeg"):
+        sys.exit("找不到 ffmpeg，请先安装：brew install ffmpeg")
+    for p in args.audio:
+        if not p.exists():
+            sys.exit(f"找不到录音文件：{p}")
 
     vocab = load_vocab(args.vocab, args.context)
     corrections = load_corrections(args.corrections)

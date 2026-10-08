@@ -2,6 +2,10 @@
 name = "zh-en-scribe"
 version = "0.1.0"
 description = "Offline Mandarin-English code-switching transcription with dual-model cross-checking (Whisper + SenseVoice) | 中英混说录音本地转写与核对"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Neutral Milk Studio" }]
+keywords = ["code-switching", "mandarin-english", "speech-to-text", "transcription", "whisper", "sensevoice"]
 requires-python = ">=3.10,<3.13"
 dependencies = [
     "mlx-whisper; sys_platform == 'darwin' and platform_machine == 'arm64'",  # 目前仅支持 Apple Silicon Mac
@@ -11,4 +15,12 @@ dependencies = [
     "torchaudio",
     "transformers>=4.40",     # 不加下限会解析到需要 Rust 编译的旧版 tokenizers
     "numpy",
+]
+
+[project.urls]
+Repository = "https://github.com/neutral-milk-studio/zh-en-scribe"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
 ]
