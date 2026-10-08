@@ -1,0 +1,12 @@
+# 术语表：录音里可能出现的英文词、专有名词、项目术语，一行一个。
+# 会作为提示交给 Whisper，让它优先识别成这些写法。
+#
+# 用法：复制一份到你自己的项目里修改，运行时用 --vocab 指定：
+#   uv run transcribe.py 访谈.m4a --vocab my_project/vocab.txt
+#
+# 建议不超过 60 个词（Whisper 提示词有长度上限）。以 # 开头的行会被忽略。
+# 示例（去掉 # 即生效）：
+# ChatGPT
+# prompt
+# benchmark
+# user research

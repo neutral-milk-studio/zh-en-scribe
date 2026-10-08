@@ -1,0 +1,14 @@
+[project]
+name = "zh-en-scribe"
+version = "0.1.0"
+description = "Offline Mandarin-English code-switching transcription with dual-model cross-checking (Whisper + SenseVoice) | 中英混说录音本地转写与核对"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "mlx-whisper; sys_platform == 'darwin' and platform_machine == 'arm64'",  # 目前仅支持 Apple Silicon Mac
+    "funasr",                 # SenseVoice + FSMN-VAD
+    "modelscope",
+    "torch",
+    "torchaudio",
+    "transformers>=4.40",     # 不加下限会解析到需要 Rust 编译的旧版 tokenizers
+    "numpy",
+]

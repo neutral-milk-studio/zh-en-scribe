@@ -1,0 +1,10 @@
+# 纠错表：识别后固定替换。每行"错误写法<TAB>正确写法"，中间必须是 Tab 键，不是空格。
+# 适合模型反复认错的词。看到 compare.md 里同一个错反复出现，就加一行。
+#
+# 用法：复制一份到你自己的项目里修改，运行时用 --corrections 指定：
+#   uv run transcribe.py 访谈.m4a --corrections my_project/corrections.tsv
+#
+# 注意：替换是纯文本匹配，错误写法太短（如 "prom"）会误伤正确的词（"prompt" → "promptpt"）。
+# 示例（去掉 # 即生效）：
+# 拆GPT	ChatGPT
+# 泡片	跑偏
